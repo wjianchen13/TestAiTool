@@ -28,4 +28,9 @@ public class MainActivity extends AppCompatActivity {
         startActivity(new Intent(this, TestActivity1.class));
     }
 
+    // 新增：响应 activity_main.xml 中 openTest2Button 的点击，启动 TestActivity2
+    public void onOpenTest2(View v) {
+        startActivity(new Intent(this, TestActivity2.class));
+    }
+
 }

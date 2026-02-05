@@ -25,6 +25,9 @@
         <activity
             android:name=".TestActivity1" />
 
+        <activity
+            android:name=".TestActivity2" />
+
     </application>
 
 </manifest>

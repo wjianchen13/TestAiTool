@@ -1,3 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">TestAiTool</string>
+    <string name="main_title">测试 Ai 工具</string>
+    <string name="test1">test1</string>
+    <string name="open_test2">打开 TestActivity2</string>
 </resources>
