@@ -6,8 +6,7 @@ import android.util.Log;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -17,6 +16,7 @@ import java.util.concurrent.TimeUnit;
  *
  * 使用方式：
  * new AppInitManager.Builder()
+ *     .setExecutor(yourExecutor)  // 传入全局线程池
  *     .addCallback(callback1)
  *     .addCallback(callback2)
  *     .build()
@@ -29,23 +29,28 @@ public class AppInitManager {
     private final List<InitCallback> mCallbacks;
     private final long mBackgroundInitTimeout;
     private final boolean mWaitForBackgroundInit;
+    private final Executor mExecutor;
 
     private AppInitManager(Builder builder) {
         this.mCallbacks = builder.callbacks;
         this.mBackgroundInitTimeout = builder.backgroundInitTimeout;
         this.mWaitForBackgroundInit = builder.waitForBackgroundInit;
+        this.mExecutor = builder.executor;
     }
 
     /**
      * 执行初始化
      * 主线程初始化会同步执行，子线程初始化会异步执行
-     * 初始化完成后资源会自动释放
      *
      * @param application Application实例
      */
     public void init(Application application) {
         if (application == null) {
             throw new IllegalArgumentException("Application cannot be null");
+        }
+
+        if (mExecutor == null) {
+            throw new IllegalStateException("Executor cannot be null, please call setExecutor() in Builder");
         }
 
         if (mCallbacks.isEmpty()) {
@@ -59,15 +64,8 @@ public class AppInitManager {
         // 用于等待子线程初始化完成
         final CountDownLatch latch = mWaitForBackgroundInit ? new CountDownLatch(1) : null;
 
-        // 创建临时线程池执行异步初始化
-        ExecutorService executor = Executors.newSingleThreadExecutor(r -> {
-            Thread thread = new Thread(r, "AppInitThread");
-            thread.setPriority(Thread.NORM_PRIORITY);
-            return thread;
-        });
-
-        // 在子线程执行异步初始化
-        executor.execute(() -> {
+        // 使用外部传入的线程池执行异步初始化
+        mExecutor.execute(() -> {
             long bgStartTime = System.currentTimeMillis();
             Log.d(TAG, "Background thread init started");
 
@@ -86,9 +84,6 @@ public class AppInitManager {
                 latch.countDown();
             }
         });
-
-        // 子线程任务提交后立即关闭线程池（已提交的任务会继续执行）
-        executor.shutdown();
 
         // 在主线程执行同步初始化
         long mainStartTime = System.currentTimeMillis();
@@ -130,6 +125,19 @@ public class AppInitManager {
         private final List<InitCallback> callbacks = new ArrayList<>();
         private long backgroundInitTimeout = 10000;
         private boolean waitForBackgroundInit = false;
+        private Executor executor;
+
+        /**
+         * 设置用于执行后台初始化的线程池
+         * 必须设置，否则 init() 会抛出异常
+         *
+         * @param executor 线程池
+         * @return Builder实例，支持链式调用
+         */
+        public Builder setExecutor(Executor executor) {
+            this.executor = executor;
+            return this;
+        }
 
         /**
          * 添加初始化回调
